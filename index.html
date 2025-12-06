@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 3D Painter - Vercel Edition</title>
+    <title>Pandora Premium</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; }
         
-        /* UI Overlay */
         #ui-container {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: rgba(30, 30, 30, 0.95); border: 1px solid #444;
@@ -16,7 +15,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); z-index: 10;
         }
 
-        /* Generator Panel */
         #generator-panel {
             position: absolute; top: 20px; left: 20px;
             background: rgba(30, 30, 30, 0.95); border: 1px solid #444;
@@ -64,17 +62,10 @@
         .tool-group { display: flex; align-items: center; gap: 8px; }
         label.tool-label { font-size: 11px; font-weight: bold; text-transform: uppercase; color: #888; }
         input[type="color"] { border: none; width: 35px; height: 35px; cursor: pointer; background: none; }
-        
-        /* Warning box */
-        .cors-warning {
-            background:#442222; padding:8px; border-radius:4px; margin-top:5px;
-            font-size: 10px; color: #ffaaaa; line-height: 1.2;
-        }
     </style>
     
-    <!-- Three.js Imports from CDN -->
     <script type="importmap">
-        {
+        {   
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
                 "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
@@ -89,13 +80,14 @@
         <input type="password" id="apiKey" placeholder="Paste Key Here">
         
         <h3>2. Description</h3>
-        <input type="text" id="promptInput" placeholder="e.g. A treasure chest">
+        <input type="text" id="promptInput" placeholder="e.g. A cyberpunk samurai helmet">
         
+        <!-- Quality Toggle -->
         <div class="checkbox-group">
             <input type="checkbox" id="hqToggle">
             <div>
-                <label for="hqToggle">Enable High Quality</label>
-                <small>Uses Meshy 6 • ~5 mins</small>
+                <label for="hqToggle">Enable High Quality (Refine)</label>
+                <small>Uses Meshy 6 Preview • 20+ Credits</small>
             </div>
         </div>
 
@@ -105,13 +97,16 @@
             <div class="progress-fill" id="progressFill"></div>
         </div>
         <div id="status-text">Ready</div>
-        <div id="funny-text"></div>
+        <div id="funny-text"></div> <!-- Funny Text Container -->
         
-        <div class="cors-warning">
-            <b>NOTE:</b> This uses a public proxy to bypass Vercel CORS. <br>If it fails, the proxy might be busy. Try again in 1 min.
+        <div style="background:#442222; padding:8px; border-radius:4px; margin-top:5px;">
+            <small style="color:#ffaaaa; font-size:10px; display:block; line-height:1.2;">
+                <b>NOTE:</b> Ensure "CORS Unblock" extension is ON.
+            </small>
         </div>
     </div>
 
+    <!-- boymaa yeri -->
     <div id="ui-container">
         <div class="tool-group">
             <label class="tool-label">Color</label>
@@ -129,17 +124,17 @@
             <label class="tool-label">Flip X</label> <input type="checkbox" id="flipX">
             <label class="tool-label">Flip Y</label> <input type="checkbox" id="flipY" checked>
         </div>
-        <button id="exportBtn" onclick="exportModel()">💾 Export .GLB</button>
+        <!-- Export Button -->
+        <button id="exportBtn" onclick="exportModel()">💾 Save / Export</button>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'; 
+        import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js'; // Added for Export
 
         // --- CONFIG ---
-        const PROXY_URL = 'https://corsproxy.io/?'; 
         const MESHY_API_URL = 'https://api.meshy.ai/v2/text-to-3d';
         const CANVAS_SIZE = 2048;
 
@@ -160,22 +155,26 @@
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a);
         scene.fog = new THREE.Fog(0x1a1a1a, 20, 100);
-        scene.add(new THREE.GridHelper(100, 100, 0x333333, 0x222222));
+
+        const gridHelper = new THREE.GridHelper(100, 100, 0x333333, 0x222222);
+        scene.add(gridHelper);
 
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(0, 4, 8);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); 
+        const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // preserveDrawingBuffer helps with export
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
         document.body.appendChild(renderer.domElement);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2.5));
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2.5);
+        scene.add(hemiLight);
         const dirLight = new THREE.DirectionalLight(0xffffff, 3.0);
         dirLight.position.set(5, 10, 5);
         dirLight.castShadow = true;
@@ -196,7 +195,11 @@
 
         function hexToRgb(hex) {
             const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
         }
 
         function prepareMeshForPainting(mesh) {
@@ -206,19 +209,26 @@
             const ctx = canvas.getContext('2d');
 
             if (mesh.material.map && mesh.material.map.image) {
-                try { ctx.drawImage(mesh.material.map.image, 0, 0, CANVAS_SIZE, CANVAS_SIZE); } 
-                catch(e) { ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0, CANVAS_SIZE, CANVAS_SIZE); }
+                try {
+                    ctx.drawImage(mesh.material.map.image, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                } catch(e) {
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0,0, CANVAS_SIZE, CANVAS_SIZE);
+                }
             } else {
-                ctx.fillStyle = '#DDDDDD'; ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+                ctx.fillStyle = '#DDDDDD';
+                ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
             }
 
             const texture = new THREE.CanvasTexture(canvas);
             texture.colorSpace = THREE.SRGBColorSpace;
             texture.flipY = false; 
+
             const newMat = mesh.material.clone();
             newMat.map = texture;
             newMat.side = THREE.DoubleSide;
             newMat.transparent = false; 
+            
             mesh.material = newMat;
             paintables[mesh.uuid] = { ctx, texture };
         }
@@ -228,8 +238,13 @@
             let idx = 0;
             el.innerText = FUNNY_PHRASES[0];
             el.style.display = 'block';
+            
             if(funnyInterval) clearInterval(funnyInterval);
-            funnyInterval = setInterval(() => { idx = (idx + 1) % FUNNY_PHRASES.length; el.innerText = FUNNY_PHRASES[idx]; }, 4000); 
+            
+            funnyInterval = setInterval(() => {
+                idx = (idx + 1) % FUNNY_PHRASES.length;
+                el.innerText = FUNNY_PHRASES[idx];
+            }, 4000); // Change every 4 seconds
         }
 
         function stopFunnyText() {
@@ -237,53 +252,84 @@
             document.getElementById('funny-text').innerText = "";
         }
 
-        // --- EXPORT LOGIC ---
         window.exportModel = function() {
-            if (!currentModel) { alert("No model to export!"); return; }
+            if (!currentModel) {
+                alert("No model to export!");
+                return;
+            }
+
             const exporter = new GLTFExporter();
-            exporter.parse(currentModel, (result) => {
-                if (result instanceof ArrayBuffer) save(new Blob([result], { type: 'application/octet-stream' }), 'painted_model.glb');
-                else save(new Blob([JSON.stringify(result, null, 2)], { type: 'text/plain' }), 'painted_model.gltf');
-            }, (err) => alert("Export failed."), { binary: true, maxTextureSize: CANVAS_SIZE });
+            
+            // Export as Binary .glb (single file)
+            const options = {
+                binary: true,
+                maxTextureSize: CANVAS_SIZE
+            };
+
+            exporter.parse(
+                currentModel,
+                function (result) {
+                    if (result instanceof ArrayBuffer) {
+                        saveArrayBuffer(result, 'painted_model.glb');
+                    } else {
+                        const output = JSON.stringify(result, null, 2);
+                        saveString(output, 'painted_model.gltf');
+                    }
+                },
+                function (error) {
+                    console.error('An error happened during export:', error);
+                    alert("Export failed. Check console.");
+                },
+                options
+            );
         };
+
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([buffer], { type: 'application/octet-stream' }), filename);
+        }
+
+        function saveString(text, filename) {
+            save(new Blob([text], { type: 'text/plain' }), filename);
+        }
 
         function save(blob, filename) {
             const link = document.createElement('a');
             link.style.display = 'none';
-            document.body.appendChild(link);
+            document.body.appendChild(link); // Firefox needs this
+
             link.href = URL.createObjectURL(blob);
             link.download = filename;
             link.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            }, 100);
         }
 
-        // --- GENERATION LOGIC WITH PROXY ---
+        
         window.startGeneration = async function() {
             const apiKey = document.getElementById('apiKey').value;
             const prompt = document.getElementById('promptInput').value;
             const isHQ = document.getElementById('hqToggle').checked;
+            
             const statusEl = document.getElementById('status-text');
             const btn = document.getElementById('generateBtn');
             const progressFill = document.getElementById('progressFill');
+            const progressBar = document.getElementById('progressBar');
 
-            if(!apiKey || !prompt) { alert("Please enter API Key and Prompt"); return; }
+            if(!apiKey || !prompt) {
+                alert("Please enter API Key and Prompt");
+                return;
+            }
 
             btn.disabled = true;
-            document.getElementById('progressBar').style.display = 'block';
+            progressBar.style.display = 'block';
             progressFill.style.width = "5%";
-            statusEl.innerText = "Initializing Proxy...";
+            statusEl.innerText = "Initializing Meshy 6...";
+            
             startFunnyText();
-
-            // 1. PROXY WRAPPER
-            // We route all calls through 'corsproxy.io' to bypass Vercel/Browser CORS blocks
-            const proxyFetch = async (url, options) => {
-                const proxyUrl = PROXY_URL + encodeURIComponent(url);
-                const res = await fetch(proxyUrl, options);
-                if(!res.ok) {
-                    const txt = await res.text();
-                    throw new Error(`Proxy Error: ${res.status} - ${txt}`);
-                }
-                return res.json();
-            };
 
             const headers = { 
                 'Authorization': `Bearer ${apiKey}`,
@@ -291,7 +337,6 @@
             };
 
             try {
-                // STEP 1: PREVIEW
                 const body = JSON.stringify({
                     mode: "preview",
                     prompt: prompt,
@@ -299,43 +344,54 @@
                     ai_model: "latest" 
                 });
 
-                const data = await proxyFetch(MESHY_API_URL, { method: 'POST', headers, body });
+                const res = await fetch(MESHY_API_URL, { method: 'POST', headers, body });
+                if(!res.ok) throw new Error(await res.text());
+                const data = await res.json();
                 const previewTaskId = data.result;
 
                 await pollTask(previewTaskId, headers, (status, progress) => {
                     statusEl.innerText = `Meshy 6 Preview: ${status} (${progress}%)`;
-                    progressFill.style.width = (isHQ ? progress / 2 : progress) + "%";
+                    const totalP = isHQ ? progress / 2 : progress;
+                    progressFill.style.width = totalP + "%";
                 });
 
                 if(isHQ) {
-                    // STEP 2: REFINE
                     statusEl.innerText = "Refining Geometry...";
+                    
                     const refineBody = JSON.stringify({
                         mode: "refine",
                         preview_task_id: previewTaskId,
                         ai_model: "latest"
                     });
                     
-                    const refineData = await proxyFetch(MESHY_API_URL, { method: 'POST', headers, body: refineBody });
+                    const refineRes = await fetch(MESHY_API_URL, { method: 'POST', headers, body: refineBody });
+                    if(!refineRes.ok) throw new Error(await refineRes.text());
+                    const refineData = await refineRes.json();
                     const refineTaskId = refineData.result;
 
                     const modelUrl = await pollTask(refineTaskId, headers, (status, progress) => {
                         statusEl.innerText = `Meshy 6 Refine: ${status} (${progress}%)`;
-                        progressFill.style.width = (50 + (progress / 2)) + "%";
+                        const totalP = 50 + (progress / 2);
+                        progressFill.style.width = totalP + "%";
                     });
+
                     loadGlbModel(modelUrl);
+
                 } else {
-                    const finalData = await proxyFetch(`${MESHY_API_URL}/${previewTaskId}`, { headers });
+                    const finalRes = await fetch(`${MESHY_API_URL}/${previewTaskId}`, { headers });
+                    const finalData = await finalRes.json();
                     loadGlbModel(finalData.model_urls.glb);
                 }
+
                 btn.disabled = false;
+                stopFunnyText();
 
             } catch (err) {
                 console.error(err);
                 statusEl.innerText = "Error!";
                 btn.disabled = false;
                 stopFunnyText();
-                alert("Generation Error. \n\nDetails: " + err.message);
+                alert("Error: " + err.message);
             }
         };
 
@@ -343,8 +399,7 @@
             return new Promise((resolve, reject) => {
                 const interval = setInterval(async () => {
                     try {
-                        const proxyUrl = PROXY_URL + encodeURIComponent(`${MESHY_API_URL}/${taskId}`);
-                        const res = await fetch(proxyUrl, { headers });
+                        const res = await fetch(`${MESHY_API_URL}/${taskId}`, { headers });
                         const data = await res.json();
                         
                         onUpdate(data.status, data.progress || 0);
@@ -364,18 +419,18 @@
             });
         }
 
-        // --- DOWNLOAD VIA PROXY ---
         function loadGlbModel(url) {
             const loader = new GLTFLoader();
             const statusEl = document.getElementById('status-text');
+            
             if(currentModel) scene.remove(currentModel);
+
+            const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
             statusEl.innerText = "Downloading Model...";
 
-            // CRITICAL: Route download through Proxy too
-            const safeUrl = PROXY_URL + encodeURIComponent(url);
-
-            loader.load(safeUrl, (gltf) => {
+            loader.load(proxyUrl, (gltf) => {
                 currentModel = gltf.scene;
+                
                 currentModel.traverse((child) => {
                     if (child.isMesh) {
                         prepareMeshForPainting(child);
@@ -383,20 +438,22 @@
                         child.receiveShadow = true;
                     }
                 });
+
                 const box = new THREE.Box3().setFromObject(currentModel);
                 const maxDim = Math.max(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z);
                 currentModel.scale.multiplyScalar(5 / maxDim);
                 new THREE.Box3().setFromObject(currentModel).getCenter(currentModel.position).multiplyScalar(-1);
                 currentModel.position.y += 2.5;
+
                 scene.add(currentModel);
                 statusEl.innerText = "Meshy 6 Model Ready!";
                 stopFunnyText();
                 document.getElementById('progressFill').style.width = "100%";
+                
             }, undefined, (err) => {
                 console.error(err);
                 statusEl.innerText = "Download Error";
                 stopFunnyText();
-                alert("Failed to download model file.");
             });
         }
 
@@ -406,6 +463,7 @@
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
+
             const intersects = raycaster.intersectObjects(scene.children, true);
             if (intersects.length > 0) {
                 const intersect = intersects[0];
@@ -421,17 +479,20 @@
                     const x = u * CANVAS_SIZE;
                     const y = v * CANVAS_SIZE;
                     
-                    const rgb = hexToRgb(elColor.value);
+                    const colorHex = elColor.value;
+                    const rgb = hexToRgb(colorHex);
                     const opacity = elOpacity.value / 100;
                     const size = elBrush.value;
 
                     const grad = ctx.createRadialGradient(x, y, 0, x, y, size);
                     grad.addColorStop(0, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`);
                     grad.addColorStop(1, `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0)`);
+                    
                     ctx.fillStyle = grad;
                     ctx.beginPath();
                     ctx.arc(x, y, size, 0, 2 * Math.PI);
                     ctx.fill();
+
                     data.texture.needsUpdate = true;
                     controls.enabled = false;
                 }
